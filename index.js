@@ -1,4 +1,4 @@
-import { app } from "./src/app.js"
+import app from "./src/app.js"
 import { PORT } from "./src/constant.js"
 import { dbConnect } from "./src/dbConfig/dbConfig.js";
 

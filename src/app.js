@@ -42,4 +42,4 @@ app.use((err, req, res, next) => {
 app.use(errorMiddleware)
 
 
-export { app };
+export default app;
