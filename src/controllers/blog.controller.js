@@ -213,7 +213,7 @@ export const getPublishedBlogs = async (req, res) => {
 
 export const getCategories = async (req, res) => {
 
-  console.log(req.query);
+  // console.log(req.query);
 
 
   try {
