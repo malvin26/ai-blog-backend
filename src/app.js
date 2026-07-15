@@ -14,7 +14,10 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: [
+            "http://localhost:5173",
+            "https://ai-blog-frontend-0t4a.onrender.com/"
+        ],
         credentials: true,
     })
 );
