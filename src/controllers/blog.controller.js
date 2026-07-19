@@ -71,12 +71,12 @@ export const publishBlog = async (req, res) => {
     }
 
     const blog = await Blog.create({
-      title: parsed.meta.title,
-      slug: parsed.meta.slug,
-      description: parsed.meta.description,
+      title: parsed.meta.title?.trim(),
+      slug: parsed.meta.slug?.trim(),
+      description: parsed.meta.description?.trim(),
 
-      category: parsed.category,
-      subCategory: parsed.subCategory,
+      category: parsed.category?.trim(),
+      subCategory: parsed.subCategory?.trim(),
 
       intro: parsed.article?.intro,
 
@@ -147,6 +147,10 @@ export const publishBlog = async (req, res) => {
 
 
 export const getPublishedBlogs = async (req, res) => {
+
+  console.log("🔥 getPublishedBlogs called");
+
+
   try {
     // ================= DEBUG =================
 
@@ -163,17 +167,38 @@ export const getPublishedBlogs = async (req, res) => {
       status: "published",
     };
 
+    // if (category) {
+    //   query.category = category;
+    // }
+
+    // if (subCategory) {
+    //   query.subCategory = subCategory;
+    // }
+
+    // if (search) {
+    //   query.title = {
+    //     $regex: search,
+    //     $options: "i",
+    //   };
+    // }
+
     if (category) {
-      query.category = category;
+      query.category = {
+        $regex: `^${category.trim()}$`,
+        $options: "i",
+      };
     }
 
     if (subCategory) {
-      query.subCategory = subCategory;
+      query.subCategory = {
+        $regex: `^${subCategory.trim()}$`,
+        $options: "i",
+      };
     }
 
     if (search) {
       query.title = {
-        $regex: search,
+        $regex: search.trim(),
         $options: "i",
       };
     }
@@ -185,6 +210,25 @@ export const getPublishedBlogs = async (req, res) => {
       .sort({ publishedAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
+
+
+    // ===================
+
+
+    console.log("======================");
+    console.log("req.query =", req.query);
+
+    console.log("category =", `"${req.query.category}"`);
+    console.log("subCategory =", `"${req.query.subCategory}"`);
+
+    console.log("Mongo Query =", query);
+
+
+
+    console.log("Found Blogs =", blogs.length);
+    console.log("======================");
+
+    // ===================
 
 
 
