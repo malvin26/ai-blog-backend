@@ -1,5 +1,5 @@
 
-
+import { redis } from "../config/redis.js";
 import mongoose from "mongoose";
 import { Blog } from "../models/blog.model.js";
 
@@ -114,6 +114,19 @@ export const publishBlog = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    // =====================
+    // Clear Redis Cache
+    // =====================
+
+    const blogKeys = await redis.keys("blogs:*");
+
+    if (blogKeys.length > 0) {
+      await redis.del(...blogKeys);
+    }
+
+    await redis.del("categories");
+    await redis.del(`blog:${blog.slug}`);
+
     return res.status(201).json({
       success: true,
       message:
@@ -147,28 +160,34 @@ export const publishBlog = async (req, res) => {
 
 
 export const getPublishedBlogs = async (req, res) => {
-
-
-
-
   try {
-    // ================= DEBUG =================
-
-    // ================= DEBUG =================
-
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 12;
 
-    const category = req.query.category;
-    const subCategory = req.query.subCategory;
-    const search = req.query.search;
+    const category = req.query.category || "";
+    const subCategory = req.query.subCategory || "";
+    const search = req.query.search || "";
+
+    // Redis Cache Key
+    const cacheKey = `blogs:${page}:${limit}:${category}:${subCategory}:${search}`;
+
+    // ===========================
+    // Check Redis Cache
+    // ===========================
+
+    const cachedData = await redis.get(cacheKey);
+
+    if (cachedData) {
+      console.log("✅ Blogs From Redis Cache");
+
+      return res.status(200).json(cachedData);
+    }
+
+    console.log("📦 Blogs From MongoDB");
 
     const query = {
       status: "published",
     };
-
-
-    console.log(category.name);
 
     if (category) {
       query.category = {
@@ -191,30 +210,31 @@ export const getPublishedBlogs = async (req, res) => {
       };
     }
 
-
     const total = await Blog.countDocuments(query);
 
     const blogs = await Blog.find(query)
       .sort({ publishedAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-
-    // ===================
-
-
-    // ===================
-
-
-
-    return res.json({
+    const response = {
       success: true,
       blogs,
       total,
       page,
       totalPages: Math.ceil(total / limit),
+    };
+
+    // ===========================
+    // Save Redis Cache
+    // ===========================
+
+    await redis.set(cacheKey, response, {
+      ex: 300, // 5 Minutes
     });
 
+    return res.status(200).json(response);
   } catch (err) {
     console.error(err);
 
@@ -225,40 +245,46 @@ export const getPublishedBlogs = async (req, res) => {
   }
 };
 
-
 /* ===========================================================
    Get Categories + SubCategories
 =========================================================== */
 
 export const getCategories = async (req, res) => {
-
-  // console.log(req.query);
-
-
   try {
+    const cacheKey = "categories";
+
+    // ===========================
+    // Redis Cache Check
+    // ===========================
+
+    const cachedData = await redis.get(cacheKey);
+
+    if (cachedData) {
+      console.log("✅ Categories From Redis");
+
+      return res.status(200).json(cachedData);
+    }
+
+    console.log("📦 Categories From MongoDB");
+
     const categories = await Blog.aggregate([
       {
         $match: {
           status: "published",
         },
       },
-
       {
         $group: {
           _id: "$category",
-
           topics: {
             $addToSet: "$subCategory",
           },
         },
       },
-
       {
         $project: {
           _id: 0,
-
           name: "$_id",
-
           topics: {
             $filter: {
               input: "$topics",
@@ -266,16 +292,10 @@ export const getCategories = async (req, res) => {
               cond: {
                 $and: [
                   {
-                    $ne: [
-                      "$$topic",
-                      null,
-                    ],
+                    $ne: ["$$topic", null],
                   },
                   {
-                    $ne: [
-                      "$$topic",
-                      "",
-                    ],
+                    $ne: ["$$topic", ""],
                   },
                 ],
               },
@@ -283,7 +303,6 @@ export const getCategories = async (req, res) => {
           },
         },
       },
-
       {
         $sort: {
           name: 1,
@@ -291,44 +310,57 @@ export const getCategories = async (req, res) => {
       },
     ]);
 
-
-
-
-    return res.status(200).json({
+    const response = {
       success: true,
       categories,
+    };
+
+    // ===========================
+    // Save Redis Cache
+    // ===========================
+
+    await redis.set(cacheKey, response, {
+      ex: 1800, // 30 Minutes
     });
 
+    return res.status(200).json(response);
   } catch (error) {
-
-    console.error(
-      "Category API Error:",
-      error
-    );
+    console.error("Category API Error:", error);
 
     return res.status(500).json({
       success: false,
       message: error.message,
     });
-
   }
 };
-
 
 /* ===========================================================
    Get Single Blog
 =========================================================== */
 
-export const getSingleBlog = async (
-  req,
-  res
-) => {
-
+export const getSingleBlog = async (req, res) => {
   try {
-
-    console.log("req.query =", req.query);
-
     const { slug } = req.params;
+
+    // ===========================
+    // Redis Cache Key
+    // ===========================
+
+    const cacheKey = `blog:${slug}`;
+
+    // ===========================
+    // Check Redis Cache
+    // ===========================
+
+    const cachedData = await redis.get(cacheKey);
+
+    if (cachedData) {
+      console.log("✅ Blog From Redis");
+
+      return res.status(200).json(cachedData);
+    }
+
+    console.log("📦 Blog From MongoDB");
 
     const blog = await Blog.findOne({
       slug,
@@ -342,12 +374,24 @@ export const getSingleBlog = async (
       });
     }
 
-    return res.status(200).json({
+    const response = {
       success: true,
       blog,
+    };
+
+    // ===========================
+    // Save Redis Cache
+    // ===========================
+
+    await redis.set(cacheKey, response, {
+      ex: 600, // 10 Minutes
     });
 
+    return res.status(200).json(response);
+
   } catch (error) {
+
+    console.error(error);
 
     return res.status(500).json({
       success: false,
@@ -356,9 +400,6 @@ export const getSingleBlog = async (
 
   }
 };
-
-
-
 
 
 
