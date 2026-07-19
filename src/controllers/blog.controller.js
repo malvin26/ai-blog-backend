@@ -148,7 +148,7 @@ export const publishBlog = async (req, res) => {
 
 export const getPublishedBlogs = async (req, res) => {
 
-  console.log("🔥 getPublishedBlogs called");
+
 
 
   try {
@@ -167,20 +167,8 @@ export const getPublishedBlogs = async (req, res) => {
       status: "published",
     };
 
-    // if (category) {
-    //   query.category = category;
-    // }
 
-    // if (subCategory) {
-    //   query.subCategory = subCategory;
-    // }
-
-    // if (search) {
-    //   query.title = {
-    //     $regex: search,
-    //     $options: "i",
-    //   };
-    // }
+    console.log(category.name);
 
     if (category) {
       query.category = {
@@ -214,19 +202,6 @@ export const getPublishedBlogs = async (req, res) => {
 
     // ===================
 
-
-    console.log("======================");
-    console.log("req.query =", req.query);
-
-    console.log("category =", `"${req.query.category}"`);
-    console.log("subCategory =", `"${req.query.subCategory}"`);
-
-    console.log("Mongo Query =", query);
-
-
-
-    console.log("Found Blogs =", blogs.length);
-    console.log("======================");
 
     // ===================
 
