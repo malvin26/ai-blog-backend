@@ -64,8 +64,8 @@ export const passwordHashing = async (password) => {
 // .... admin access token create ................
 
 
-export const adminAccessTokenGenerate = async (payload) => {
+export const adminAccessTokenGenerate = (payload) => {
 
-    return await jwt.sign(payload, JWT_SECRET)
+    return jwt.sign(payload, JWT_SECRET)
 
 }
