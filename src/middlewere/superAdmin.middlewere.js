@@ -5,16 +5,17 @@ import { ApiError } from "../utils/helper.js";
 
 export const superAdmin = async (req, res, next) => {
     try {
-        const token = req.cookies?.xxx_super_admin;
+        const authHeader = req.headers.authorization;
 
-        if (!token) {
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
             throw new ApiError("Super admin token missing", 403);
         }
 
+        const token = authHeader.split(" ")[1];
+
         const decoded = jwt.verify(token, JWT_SECRET);
 
-
-        const admin = await Admin.findById(decoded?.payloadData);
+        const admin = await Admin.findById(decoded.payloadData);
 
         if (!admin) {
             throw new ApiError("Admin not found", 401);
@@ -31,4 +32,3 @@ export const superAdmin = async (req, res, next) => {
         next(error);
     }
 };
-
