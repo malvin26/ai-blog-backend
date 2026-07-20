@@ -2,6 +2,7 @@
 import { redis } from "../config/redis.js";
 import mongoose from "mongoose";
 import { Blog } from "../models/blog.model.js";
+import { uploadToCloudinary } from "../ai-service/cloudinaryUploader.js";
 
 /* ===========================================================
    Helpers
@@ -41,38 +42,54 @@ export const publishBlog = async (req, res) => {
       });
     }
 
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Thumbnail image is required",
+      });
+    }
+
     let parsed;
 
     if (typeof rawContent === "string") {
-      parsed = JSON.parse(
-        cleanJSONString(rawContent)
-      );
+      parsed = JSON.parse(cleanJSONString(rawContent));
     } else {
       parsed = rawContent;
     }
 
-    if (!parsed.meta?.slug) {
+    const slug = parsed.meta?.slug?.trim();
+
+    if (!slug) {
       return res.status(400).json({
         success: false,
         message: "Slug missing",
       });
     }
 
-    const exists = await Blog.findOne({
-      slug: parsed.meta.slug,
-    });
+    const exists = await Blog.findOne({ slug });
 
     if (exists) {
       return res.status(409).json({
         success: false,
-        message:
-          "এই slug দিয়ে ইতিমধ্যে একটি Blog আছে।",
+        message: "এই slug দিয়ে ইতিমধ্যে একটি Blog আছে।",
       });
     }
 
+    // ==========================
+    // Upload Thumbnail
+    // public_id = blog slug
+    // ==========================
+    const thumbnail = await uploadToCloudinary(
+      req.file.path,
+      slug
+    );
+
+    // ==========================
+    // Create Blog
+    // ==========================
     const blog = await Blog.create({
       title: parsed.meta.title?.trim(),
-      slug: parsed.meta.slug?.trim(),
+      slug,
       description: parsed.meta.description?.trim(),
 
       category: parsed.category?.trim(),
@@ -80,44 +97,41 @@ export const publishBlog = async (req, res) => {
 
       intro: parsed.article?.intro,
 
-      sections:
-        parsed.article?.sections || [],
+      sections: parsed.article?.sections || [],
 
-      expertTips:
-        parsed.article?.expertTips || [],
+      expertTips: parsed.article?.expertTips || [],
 
       commonMistakes:
         parsed.article?.commonMistakes || [],
 
-      faq:
-        parsed.article?.faq || [],
+      faq: parsed.article?.faq || [],
 
-      summary:
-        parsed.article?.summary,
+      summary: parsed.article?.summary,
 
-      conclusion:
-        parsed.article?.conclusion,
+      conclusion: parsed.article?.conclusion,
 
-      primaryKeyword:
-        parsed.keywords?.primary,
+      primaryKeyword: parsed.keywords?.primary,
 
       relatedKeywords:
         parsed.keywords?.related || [],
 
-      seoTags:
-        parsed.seoTags || [],
+      seoTags: parsed.seoTags || [],
 
       status: "published",
 
       publishedAt: new Date(),
 
       createdBy: req.user._id,
+
+      thumbnail: {
+        url: thumbnail.url,
+        public_id: thumbnail.public_id,
+      },
     });
 
-    // =====================
+    // ==========================
     // Clear Redis Cache
-    // =====================
-
+    // ==========================
     const blogKeys = await redis.keys("blogs:*");
 
     if (blogKeys.length > 0) {
@@ -129,13 +143,12 @@ export const publishBlog = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message:
-        "Blog published successfully.",
-
+      message: "Blog published successfully.",
       blog: {
         _id: blog._id,
         title: blog.title,
         slug: blog.slug,
+        thumbnail: blog.thumbnail,
       },
     });
   } catch (error) {
@@ -144,20 +157,17 @@ export const publishBlog = async (req, res) => {
     if (error instanceof SyntaxError) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invalid JSON format",
+        message: "Invalid JSON format",
       });
     }
 
     return res.status(500).json({
       success: false,
       message:
-        error.message ||
-        "Internal Server Error",
+        error.message || "Internal Server Error",
     });
   }
 };
-
 
 export const getPublishedBlogs = async (req, res) => {
   try {
