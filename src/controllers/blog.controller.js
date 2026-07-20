@@ -118,11 +118,11 @@ export const publishBlog = async (req, res) => {
     // Clear Redis Cache
     // =====================
 
-    const blogKeys = await redis.keys("blogs:*");
+    // const blogKeys = await redis.keys("blogs:*");
 
-    if (blogKeys.length > 0) {
-      await redis.del(...blogKeys);
-    }
+    // if (blogKeys.length > 0) {
+    //   await redis.del(...blogKeys);
+    // }
 
     await redis.del("categories");
     await redis.del(`blog:${blog.slug}`);
