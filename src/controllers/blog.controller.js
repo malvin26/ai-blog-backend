@@ -118,11 +118,11 @@ export const publishBlog = async (req, res) => {
     // Clear Redis Cache
     // =====================
 
-    // const blogKeys = await redis.keys("blogs:*");
+    const blogKeys = await redis.keys("blogs:*");
 
-    // if (blogKeys.length > 0) {
-    //   await redis.del(...blogKeys);
-    // }
+    if (blogKeys.length > 0) {
+      await redis.del(...blogKeys);
+    }
 
     await redis.del("categories");
     await redis.del(`blog:${blog.slug}`);
@@ -161,62 +161,72 @@ export const publishBlog = async (req, res) => {
 
 export const getPublishedBlogs = async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 12;
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 50);
+    const skip = (page - 1) * limit;
 
-    const category = req.query.category || "";
-    const subCategory = req.query.subCategory || "";
-    const search = req.query.search || "";
+    const category = req.query.category?.trim() || "";
+    const subCategory = req.query.subCategory?.trim() || "";
+    const search = req.query.search?.trim() || "";
 
-    // Redis Cache Key
     const cacheKey = `blogs:${page}:${limit}:${category}:${subCategory}:${search}`;
 
     // ===========================
-    // Check Redis Cache
+    // Redis Cache
     // ===========================
+    console.time("redis");
 
     const cachedData = await redis.get(cacheKey);
 
-    if (cachedData) {
-      console.log("✅ Blogs From Redis Cache");
+    console.timeEnd("redis");
 
+    if (cachedData) {
+      console.log("✅ Blogs From Redis");
       return res.status(200).json(cachedData);
     }
 
-    console.log("📦 Blogs From MongoDB");
-
+    // ===========================
+    // Mongo Query
+    // ===========================
     const query = {
       status: "published",
     };
 
     if (category) {
-      query.category = {
-        $regex: `^${category.trim()}$`,
-        $options: "i",
-      };
+      query.category = category;
     }
 
     if (subCategory) {
-      query.subCategory = {
-        $regex: `^${subCategory.trim()}$`,
-        $options: "i",
-      };
+      query.subCategory = subCategory;
     }
 
+    // Option 1: Full-text search (requires text index)
     if (search) {
-      query.title = {
-        $regex: search.trim(),
-        $options: "i",
+      query.$text = {
+        $search: search,
       };
     }
 
-    const total = await Blog.countDocuments(query);
+    console.time("mongo");
 
-    const blogs = await Blog.find(query)
-      .sort({ publishedAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    const [blogs, total] = await Promise.all([
+      Blog.find(query)
+        .select(
+          "title slug description category subCategory thumbnail publishedAt"
+        )
+        .sort(
+          search
+            ? { score: { $meta: "textScore" } }
+            : { publishedAt: -1 }
+        )
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Blog.countDocuments(query),
+    ]);
+
+    console.timeEnd("mongo");
 
     const response = {
       success: true,
@@ -227,11 +237,10 @@ export const getPublishedBlogs = async (req, res) => {
     };
 
     // ===========================
-    // Save Redis Cache
+    // Save Redis
     // ===========================
-
     await redis.set(cacheKey, response, {
-      ex: 300, // 5 Minutes
+      ex: 300,
     });
 
     return res.status(200).json(response);
@@ -244,7 +253,6 @@ export const getPublishedBlogs = async (req, res) => {
     });
   }
 };
-
 /* ===========================================================
    Get Categories + SubCategories
 =========================================================== */

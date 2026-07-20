@@ -2,12 +2,13 @@ import mongoose from "mongoose";
 
 const blogSchema = new mongoose.Schema(
   {
-    // ✅ SEO & URL
+    // SEO
     title: {
       type: String,
       required: true,
       trim: true,
     },
+
     slug: {
       type: String,
       required: true,
@@ -15,26 +16,29 @@ const blogSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    description: {        // meta description (SEO)
+
+    description: {
       type: String,
       required: true,
+      trim: true,
     },
 
-    // ✅ Category & Filter
+    // Category
     category: {
       type: String,
       required: true,
-    },
-    subCategory: {
-      type: String,
+      trim: true,
     },
 
-    // ✅ Article Body
+    subCategory: {
+      type: String,
+      trim: true,
+    },
+
+    // Article
     intro: {
       type: String,
     },
-
-
 
     sections: [
       {
@@ -47,6 +51,7 @@ const blogSchema = new mongoose.Schema(
     ],
 
     expertTips: [String],
+
     commonMistakes: [String],
 
     faq: [
@@ -57,32 +62,43 @@ const blogSchema = new mongoose.Schema(
       },
     ],
 
-    summary: { type: String },
-    conclusion: { type: String },
+    summary: String,
 
-    // ✅ SEO Tags
-    primaryKeyword: { type: String },
+    conclusion: String,
+
+    // SEO
+    primaryKeyword: String,
+
     relatedKeywords: [String],
+
     seoTags: [String],
 
-    // ✅ Publish Control
+    // Status
     status: {
       type: String,
       enum: ["draft", "published", "archived"],
       default: "draft",
+      index: true,
     },
-    publishedAt: { type: Date },
+
+    publishedAt: {
+      type: Date,
+      index: true,
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
     },
-    // ✅ Thumbnail
+
+    // Thumbnail
     thumbnail: {
       url: {
         type: String,
         required: true,
         trim: true,
       },
+
       public_id: {
         type: String,
         required: true,
@@ -94,5 +110,43 @@ const blogSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+/* =====================================================
+   PERFORMANCE INDEXES
+===================================================== */
+
+// Home page
+blogSchema.index({
+  status: 1,
+  publishedAt: -1,
+});
+
+// Category filter
+blogSchema.index({
+  status: 1,
+  category: 1,
+});
+
+// Sub Category filter
+blogSchema.index({
+  status: 1,
+  category: 1,
+  subCategory: 1,
+});
+
+// Slug page
+blogSchema.index({
+  slug: 1,
+});
+
+// Latest blogs
+blogSchema.index({
+  createdAt: -1,
+});
+
+// Search title
+blogSchema.index({
+  title: "text",
+});
 
 export const Blog = mongoose.model("Blog", blogSchema);
