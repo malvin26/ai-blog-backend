@@ -134,10 +134,7 @@ blogSchema.index({
   subCategory: 1,
 });
 
-// Slug page
-blogSchema.index({
-  slug: 1,
-});
+
 
 // Latest blogs
 blogSchema.index({

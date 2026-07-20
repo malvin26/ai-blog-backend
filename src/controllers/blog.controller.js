@@ -345,22 +345,21 @@ export const getCategories = async (req, res) => {
 /* ===========================================================
    Get Single Blog
 =========================================================== */
-
 export const getSingleBlog = async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // ===========================
-    // Redis Cache Key
-    // ===========================
-
     const cacheKey = `blog:${slug}`;
 
     // ===========================
-    // Check Redis Cache
+    // Redis Cache
     // ===========================
 
+    console.time("redis-single");
+
     const cachedData = await redis.get(cacheKey);
+
+    console.timeEnd("redis-single");
 
     if (cachedData) {
       console.log("✅ Blog From Redis");
@@ -368,12 +367,43 @@ export const getSingleBlog = async (req, res) => {
       return res.status(200).json(cachedData);
     }
 
+    // ===========================
+    // MongoDB
+    // ===========================
+
     console.log("📦 Blog From MongoDB");
+
+    console.time("mongo-single");
 
     const blog = await Blog.findOne({
       slug,
       status: "published",
-    }).lean();
+    })
+      .select(
+        `
+        title
+        slug
+        description
+        category
+        subCategory
+        intro
+        sections
+        expertTips
+        commonMistakes
+        faq
+        summary
+        conclusion
+        primaryKeyword
+        relatedKeywords
+        seoTags
+        thumbnail
+        publishedAt
+        createdAt
+      `
+      )
+      .lean();
+
+    console.timeEnd("mongo-single");
 
     if (!blog) {
       return res.status(404).json({
@@ -392,23 +422,19 @@ export const getSingleBlog = async (req, res) => {
     // ===========================
 
     await redis.set(cacheKey, response, {
-      ex: 600, // 10 Minutes
+      ex: 3600, // 1 Hour
     });
 
     return res.status(200).json(response);
 
   } catch (error) {
 
-    console.error(error);
+    console.error("Single Blog Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Internal Server Error",
     });
 
   }
 };
-
-
-
-
