@@ -60,38 +60,70 @@ export const adminRegister = tryCatchHandle(async (req, res) => {
 });
 
 // =========================
-// LOGIN
+// ADMIN LOGIN
 // =========================
 export const adminLogin = tryCatchHandle(async (req, res) => {
     const { email, password } = req.body;
 
+    // Validate fields
     if (!email || !password) {
-        throw new ApiError("Missing fields", 400);
+        throw new ApiError("Email and password are required", 400);
     }
 
-    const admin = await Admin.findOne({ email });
+    // Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
 
+    // Find admin
+    const admin = await Admin.findOne({
+        email: normalizedEmail,
+    });
+
+    // Same error for both cases
     if (!admin) {
         throw new ApiError("Invalid credentials", 401);
     }
 
-    const match = await bcrypt.compare(password, admin.password);
+    // Compare password
+    const match = await bcrypt.compare(
+        password,
+        admin.password
+    );
 
     if (!match) {
         throw new ApiError("Invalid credentials", 401);
     }
 
+    // Generate access token
     const accessToken = adminAccessTokenGenerate({
         payloadData: admin._id,
     });
 
+    // Save token if your middleware checks it from DB
     admin.accessToken = accessToken;
+
     await admin.save();
+
+    // Don't send password or sensitive fields
+    const adminData = {
+        _id: admin._id,
+        email: admin.email,
+        role: admin.role,
+    };
+
+    // Secure HTTP-only cookie
+    res.cookie("adminAccessToken", accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite:
+            process.env.NODE_ENV === "production"
+                ? "none"
+                : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+    });
 
     return res.status(200).json(
         new ApiSuccess("Login success", 200, {
-            admin,
-            accessToken,
+            admin: adminData,
         })
     );
 });

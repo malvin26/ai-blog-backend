@@ -8,12 +8,13 @@ import {
   getCategories,
 } from "../controllers/blog.controller.js";
 import { upload } from "../middlewere/multer.middlewere.js";
+import { adminLoginLimiter } from "../utils/helper.js";
 
 
 const router = express.Router();
 
 router.route("/xxx-admin-register").post(adminRegister);
-router.route("/xxx-admin-login").post(adminLogin);
+router.route("/xxx-admin-login").post(adminLogin, adminLoginLimiter);
 router.route("/xxx-admin-generate").get(superAdmin, aiContentGenerate);
 router.route("/xxx-admin-publish").post(superAdmin, upload.single("thumbnail"), publishBlog);
 router.route("/blogs").get(getPublishedBlogs);
