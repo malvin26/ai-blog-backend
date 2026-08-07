@@ -5,7 +5,7 @@ import {
     adminAccessTokenGenerate,
     ApiError,
     ApiSuccess,
-    gmailChacker,
+    gmailChecker,
     passwordHashing,
     passwordPattern,
     tryCatchHandle,
@@ -21,7 +21,7 @@ export const adminRegister = tryCatchHandle(async (req, res) => {
         throw new ApiError("All fields required", 400);
     }
 
-    if (!gmailChacker(email)) {
+    if (!gmailChecker(email)) {
         throw new ApiError("Invalid Gmail", 400);
     }
 
