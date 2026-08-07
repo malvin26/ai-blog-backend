@@ -3,7 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize";
+
 import hpp from "hpp";
 
 import { errorMiddleware } from "./middlewere/apiError.middlewere.js";
@@ -92,11 +92,6 @@ app.use(
 app.use(cookieParser());
 
 
-/* =====================================================
-   MONGO SANITIZE
-===================================================== */
-
-app.use(mongoSanitize());
 
 
 /* =====================================================
