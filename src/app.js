@@ -135,6 +135,21 @@ app.use((req, res, next) => {
 });
 
 
+
+/* =====================================================
+   HEALTH CHECK
+===================================================== */
+
+app.get("/health", (req, res) => {
+    res.status(200).json({
+        status: true,
+        message: "Server is healthy",
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+    });
+});
+
+
 /* =====================================================
    ROUTES
 ===================================================== */
