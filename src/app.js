@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
 
 import hpp from "hpp";
 
@@ -102,14 +103,38 @@ app.use(hpp());
 
 
 /* =====================================================
+   HEALTH CHECK
+===================================================== */
+
+app.get("/health", async (req, res) => {
+    const dbState = mongoose.connection.readyState;
+
+    if (dbState !== 1) {
+        return res.status(503).json({
+            status: false,
+            server: "healthy",
+            database: "disconnected",
+            message: "Database is not connected",
+            timestamp: new Date().toISOString(),
+        });
+    }
+
+    return res.status(200).json({
+        status: true,
+        server: "healthy",
+        database: "connected",
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+    });
+});
+
+/* =====================================================
    GLOBAL RATE LIMIT
 ===================================================== */
 
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-
+    windowMs: 15 * 60 * 1000,
     max: 300,
-
     standardHeaders: true,
     legacyHeaders: false,
 
@@ -120,7 +145,6 @@ const globalLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-
 
 /* =====================================================
    REQUEST LOGGER
@@ -136,18 +160,6 @@ app.use((req, res, next) => {
 
 
 
-/* =====================================================
-   HEALTH CHECK
-===================================================== */
-
-app.get("/health", (req, res) => {
-    res.status(200).json({
-        status: true,
-        message: "Server is healthy",
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-    });
-});
 
 
 /* =====================================================
