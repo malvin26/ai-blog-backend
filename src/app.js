@@ -38,6 +38,8 @@ app.use(
 const allowedOrigins = [
     "https://ai-blog-frontend-0t4a.onrender.com",
     // "http://localhost:5173",
+    "https://www.fastblog.online",
+    "https://www.fastblog.online",
 ];
 
 app.use(
