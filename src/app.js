@@ -168,6 +168,11 @@ app.use((req, res, next) => {
    ROUTES
 ===================================================== */
 
+import sitemapRoutes from "./routes/sitemap.routes.js";
+
+// অন্যান্য routes-এর সাথে
+app.use("/", sitemapRoutes);
+
 app.use(adminRoute);
 
 
