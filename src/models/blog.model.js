@@ -418,6 +418,7 @@ const blogSchema = new mongoose.Schema(
                 trim: true,
             },
         },
+        affiliatedLink: { type: String }
     },
 
     {

@@ -131,6 +131,7 @@ export const publishBlog = async (req, res) => {
         url: thumbnail.url,
         public_id: thumbnail.public_id,
       },
+      affiliatedLink: parsed.affiliatedLink?.trim() || "",
     });
 
     // ==========================
