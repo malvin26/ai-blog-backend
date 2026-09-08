@@ -97,6 +97,10 @@ export const publishBlog = async (req, res) => {
 
       intro: parsed.article?.intro,
 
+      topic: parsed.topic?.trim(),
+      angle: parsed.angle?.trim(),
+      intentGroup: parsed.intentGroup?.trim(),
+
       sections: parsed.article?.sections || [],
 
       expertTips: parsed.article?.expertTips || [],
