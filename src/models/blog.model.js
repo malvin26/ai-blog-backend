@@ -418,7 +418,20 @@ const blogSchema = new mongoose.Schema(
                 trim: true,
             },
         },
-        affiliatedLink: { type: String }
+        affiliatedLink: { type: String },
+        affiliatedThumbnail: {
+            url: {
+                type: String,
+                required: true,
+
+            },
+
+            public_id: {
+                type: String,
+                required: true,
+
+            },
+        },
     },
 
     {

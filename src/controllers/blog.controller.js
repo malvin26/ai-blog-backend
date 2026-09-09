@@ -31,10 +31,14 @@ const cleanJSONString = (value) => {
    Publish Blog
 =========================================================== */
 
+
 export const publishBlog = async (req, res) => {
   try {
     const { rawContent } = req.body;
 
+    // ==========================
+    // Check Raw Content
+    // ==========================
     if (!rawContent) {
       return res.status(400).json({
         success: false,
@@ -42,13 +46,27 @@ export const publishBlog = async (req, res) => {
       });
     }
 
-    if (!req.file) {
+    // ==========================
+    // Get Uploaded Files
+    // ==========================
+    const mainThumbnail = req.files?.thumbnail?.[0];
+
+    const affiliateThumbnail =
+      req.files?.affiliatedThumbnail?.[0];
+
+    // ==========================
+    // Main Thumbnail Required
+    // ==========================
+    if (!mainThumbnail) {
       return res.status(400).json({
         success: false,
         message: "Thumbnail image is required",
       });
     }
 
+    // ==========================
+    // Parse JSON
+    // ==========================
     let parsed;
 
     if (typeof rawContent === "string") {
@@ -57,6 +75,9 @@ export const publishBlog = async (req, res) => {
       parsed = rawContent;
     }
 
+    // ==========================
+    // Get Slug
+    // ==========================
     const slug = parsed.meta?.slug?.trim();
 
     if (!slug) {
@@ -66,6 +87,9 @@ export const publishBlog = async (req, res) => {
       });
     }
 
+    // ==========================
+    // Check Duplicate Slug
+    // ==========================
     const exists = await Blog.findOne({ slug });
 
     if (exists) {
@@ -76,63 +100,107 @@ export const publishBlog = async (req, res) => {
     }
 
     // ==========================
-    // Upload Thumbnail
-    // public_id = blog slug
+    // Upload Main Thumbnail
     // ==========================
     const thumbnail = await uploadToCloudinary(
-      req.file.path,
+      mainThumbnail.path,
       slug
     );
 
     // ==========================
+    // Upload Affiliate Thumbnail
+    // ==========================
+    let affiliatedThumbnail = null;
+
+    if (affiliateThumbnail) {
+      affiliatedThumbnail = await uploadToCloudinary(
+        affiliateThumbnail.path,
+        `${slug}-affiliate`
+      );
+    }
+
+    // ==========================
     // Create Blog
     // ==========================
-    const blog = await Blog.create({
-      title: parsed.meta.title?.trim(),
+    const blogData = {
+      // SEO
+      title: parsed.meta?.title?.trim(),
       slug,
-      description: parsed.meta.description?.trim(),
+      description: parsed.meta?.description?.trim(),
 
+      // Category
       category: parsed.category?.trim(),
       subCategory: parsed.subCategory?.trim(),
 
-      intro: parsed.article?.intro,
-
+      // Topic
       topic: parsed.topic?.trim(),
       angle: parsed.angle?.trim(),
       intentGroup: parsed.intentGroup?.trim(),
 
-      sections: parsed.article?.sections || [],
+      // Article
+      intro: parsed.article?.intro,
 
-      expertTips: parsed.article?.expertTips || [],
+      sections:
+        parsed.article?.sections || [],
+
+      expertTips:
+        parsed.article?.expertTips || [],
 
       commonMistakes:
         parsed.article?.commonMistakes || [],
 
-      faq: parsed.article?.faq || [],
+      faq:
+        parsed.article?.faq || [],
 
-      summary: parsed.article?.summary,
+      summary:
+        parsed.article?.summary,
 
-      conclusion: parsed.article?.conclusion,
+      conclusion:
+        parsed.article?.conclusion,
 
-      primaryKeyword: parsed.keywords?.primary,
+      // SEO Keywords
+      primaryKeyword:
+        parsed.keywords?.primary,
 
       relatedKeywords:
         parsed.keywords?.related || [],
 
-      seoTags: parsed.seoTags || [],
+      seoTags:
+        parsed.seoTags || [],
 
+      // Status
       status: "published",
 
       publishedAt: new Date(),
 
+      // Admin
       createdBy: req.user._id,
 
+      // Main Thumbnail
       thumbnail: {
         url: thumbnail.url,
         public_id: thumbnail.public_id,
       },
-      affiliatedLink: parsed.affiliatedLink?.trim() || "",
-    });
+
+      // Affiliate Link
+      affiliatedLink:
+        parsed.affiliatedLink?.trim() || "",
+    };
+
+    // ==========================
+    // Affiliate Thumbnail
+    // ==========================
+    if (affiliatedThumbnail) {
+      blogData.affiliatedThumbnail = {
+        url: affiliatedThumbnail.url,
+        public_id: affiliatedThumbnail.public_id,
+      };
+    }
+
+    // ==========================
+    // Save Blog
+    // ==========================
+    const blog = await Blog.create(blogData);
 
     // ==========================
     // Clear Redis Cache
@@ -146,19 +214,34 @@ export const publishBlog = async (req, res) => {
     await redis.del("categories");
     await redis.del(`blog:${blog.slug}`);
 
+    // ==========================
+    // Success Response
+    // ==========================
     return res.status(201).json({
       success: true,
       message: "Blog published successfully.",
+
       blog: {
         _id: blog._id,
         title: blog.title,
         slug: blog.slug,
+
         thumbnail: blog.thumbnail,
+
+        affiliatedLink:
+          blog.affiliatedLink,
+
+        affiliatedThumbnail:
+          blog.affiliatedThumbnail,
       },
     });
-  } catch (error) {
-    console.error(error);
 
+  } catch (error) {
+    console.error("Publish Blog Error:", error);
+
+    // ==========================
+    // Invalid JSON
+    // ==========================
     if (error instanceof SyntaxError) {
       return res.status(400).json({
         success: false,
@@ -166,6 +249,20 @@ export const publishBlog = async (req, res) => {
       });
     }
 
+    // ==========================
+    // Duplicate MongoDB Index
+    // ==========================
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "এই Blog-এর category + topic + intentGroup combination ইতিমধ্যে ব্যবহার হয়েছে।",
+      });
+    }
+
+    // ==========================
+    // Server Error
+    // ==========================
     return res.status(500).json({
       success: false,
       message:
@@ -173,6 +270,8 @@ export const publishBlog = async (req, res) => {
     });
   }
 };
+
+
 
 export const getPublishedBlogs = async (req, res) => {
   try {

@@ -16,7 +16,7 @@ const router = express.Router();
 router.route("/xxx-admin-register").post(adminRegister);
 router.route("/xxx-admin-login").post(adminLogin, adminLoginLimiter);
 router.route("/xxx-admin-generate").get(superAdmin, aiContentGenerate);
-router.route("/xxx-admin-publish").post(superAdmin, upload.single("thumbnail"), publishBlog);
+router.route("/xxx-admin-publish").post(superAdmin, [{ name: "thumbnail", maxCount: 1, }, { name: "affiliatedThumbnail", maxCount: 1, },], publishBlog);
 router.route("/blogs").get(getPublishedBlogs);
 router.route("/blogs/:slug").get(getSingleBlog);
 router.route("/categories").get(getCategories);
