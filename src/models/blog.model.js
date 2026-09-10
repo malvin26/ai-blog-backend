@@ -418,18 +418,21 @@ const blogSchema = new mongoose.Schema(
                 trim: true,
             },
         },
-        affiliatedLink: { type: String },
+        affiliatedLink: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
         affiliatedThumbnail: {
             url: {
                 type: String,
-                required: true,
-
+                trim: true,
             },
 
             public_id: {
                 type: String,
-                required: true,
-
+                trim: true,
             },
         },
     },
