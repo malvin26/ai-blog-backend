@@ -326,7 +326,7 @@ export const getPublishedBlogs = async (req, res) => {
     const [blogs, total] = await Promise.all([
       Blog.find(query)
         .select(
-          "title slug description category subCategory thumbnail publishedAt"
+          "title slug description category subCategory thumbnail affiliatedLink affiliatedThumbnail  publishedAt"
         )
         .sort(
           search
