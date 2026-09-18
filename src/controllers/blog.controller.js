@@ -511,6 +511,8 @@ export const getSingleBlog = async (req, res) => {
         relatedKeywords
         seoTags
         thumbnail
+        affiliatedLink
+        affiliatedThumbnail
         publishedAt
         createdAt
       `
